@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rifa del 1 al 700</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
+    h1 {
+      margin-bottom: 10px;
+    }
+    h2 {
+      margin-top: 30px;
+    }
+    #adminStatus {
+      margin-bottom: 15px;
+      font-weight: bold;
+    }
+    #numbers {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(40px, 1fr));
+      gap: 10px;
+      max-width: 1000px;
+      margin: auto;
+    }
+    .number {
+      width: 40px;
+      height: 40px;
+      margin: 4px;
+      line-height: 40px;
+      border-radius: 6px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      cursor: pointer;
+      position: relative;
+    }
+    .available {
+      background-color: #d4edda;
+      color: #155724;
+    }
+    .taken {
+      background-color: #f8d7da;
+      color: #721c24;
+      cursor: not-allowed;
+    }
+    .admin .taken {
+      cursor: pointer;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 14px;
+      margin-top: 15px;
+      transition: background-color 0.3s ease;
+    }
+    .admin-active {
+      background-color: #28a745;
+      color: white;
+      border: none;
+    }
+    .tooltip {
+      position: absolute;
+      top: -25px;
+      left: 50%;
+      transform: translateX(-50%);
+      background-color: black;
+      color: white;
+      padding: 3px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+      display: none;
+    }
+    .number:hover .tooltip {
+      display: block;
+    }
+    #modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    #modalContent {
+      background: white;
+      padding: 20px;
+      border-radius: 6px;
+      width: 300px;
+    }
+    #modal input {
+      width: 100%;
+      margin: 8px 0;
+      padding: 8px;
+    }
+
+    /* Estilos responsivos */
+    @media (max-width: 600px) {
+      .number {
+        width: 100%;
+        font-size: 12px;
+      }
+
+      button {
+        width: 100%;
+        font-size: 16px;
+      }
+
+      #modalContent {
+        width: 90%;
+      }
+
+      /* Ajuste en pantallas pequeñas */
+      #infoContainer {
+        flex-direction: column;
+        align-items: center;
+      }
+    }
+
+    /* Estilos para las secciones de premios y transferencia */
+    #infoContainer {
+      display: flex;
+      justify-content: space-around;
+      margin-bottom: 30px;
+    }
+
+    #premios, #transferencia {
+      width: 45%;
+      padding: 20px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+      background-color: #f9f9f9;
+    }
+
+    #premios h2, #transferencia h2 {
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>Gran rifa</h1>
+  <p>Gran rifa a beneficio</p>
+
+  <!-- Contenedor de Premios y Transferencia -->
+  <div id="infoContainer">
+    <!-- Apartado de Premios -->
+    <section id="premios">
+      <h2>Premios</h2>
+      <ul style="list-style-type: none; padding: 0;">
+        <li><strong>1º Premio:</strong> Scoteer electrico</li>
+      </ul>
+    </section>
+
+    <!-- Apartado de Valor del número y datos para transferencia -->
+    <section id="transferencia">
+      <h2>Datos para Transferencia</h2>
+      <p><strong>banco estado</strong> CTA Rut</p>
+      <p><strong>RUT:</strong></p>
+      <p><strong>Titular:</strong> Abhraam Benavides</p>
+      <p><strong>Enviar comprobante al WhatsApp:</strong> +569 85051838</p>
+    </section>
+  </div>
+  <p><strong>Valor del número:</strong> $1000</p>
+
+  <div id="adminStatus"></div>
+  <button id="adminBtn" onclick="toggleAdmin()">Entrar/Salir modo admin</button>
+  <div id="numbers"></div>
+
+  <!-- Modal para ingresar nombre -->
+  <div id="modal">
+    <div id="modalContent">
+      <h3>Asignar número <span id="modalNumber"></span></h3>
+      <input type="text" id="nombre" placeholder="Nombre">
+      <input type="text" id="apellido" placeholder="Apellido">
+      <button onclick="guardarAsignacion()">Guardar</button>
+      <button onclick="eliminarAsignacion()">Eliminar</button>
+      <button onclick="cerrarModal()">Cancelar</button>
+    </div>
+  </div>
+
+  <script>
+    const totalNumbers = 700;
+    const correctPassword = "admin1234";
+    let isAdmin = false;
+    let data = JSON.parse(localStorage.getItem("rifaData")) || {};
+    let selectedNumber = null;
+
+    const container = document.getElementById("numbers");
+    const adminStatus = document.getElementById("adminStatus");
+    const modal = document.getElementById("modal");
+    const modalNumber = document.getElementById("modalNumber");
+    const inputNombre = document.getElementById("nombre");
+    const inputApellido = document.getElementById("apellido");
+    const adminButton = document.getElementById("adminBtn");
+
+    function renderNumbers() {
+      container.innerHTML = "";
+      for (let i = 1; i <= totalNumbers; i++) {
+        const div = document.createElement("div");
+        div.className = "number";
+        div.innerText = i;
+
+        if (data[i]) {
+          div.classList.add("taken");
+          const tooltip = document.createElement("div");
+          tooltip.className = "tooltip";
+          tooltip.innerText = `${data[i].nombre} ${data[i].apellido}`;
+          div.appendChild(tooltip);
+        } else {
+          div.classList.add("available");
+        }
+
+        div.onclick = () => handleClick(i);
+        container.appendChild(div);
+      }
+
+      document.body.className = isAdmin ? "admin" : "";
+      adminStatus.innerText = isAdmin ? "" : "";
+      adminButton.classList.toggle("admin-active", isAdmin);
+    }
+
+    function handleClick(num) {
+      if (!isAdmin) {
+        if (data[num]) {
+          alert("Este número ya está reservado.");
+        } else {
+          alert(`Número ${num} disponible. Contacta al organizador para reservarlo.`);
+        }
+        return;
+      }
+
+      selectedNumber = num;
+      inputNombre.value = data[num]?.nombre || "";
+      inputApellido.value = data[num]?.apellido || "";
+      modalNumber.innerText = num;
+      modal.style.display = "flex";
+    }
+
+    function guardarAsignacion() {
+      const nombre = inputNombre.value.trim();
+      const apellido = inputApellido.value.trim();
+
+      if (!nombre || !apellido) {
+        alert("Por favor ingresa nombre y apellido.");
+        return;
+      }
+
+      data[selectedNumber] = { nombre, apellido };
+      localStorage.setItem("rifaData", JSON.stringify(data));
+      cerrarModal();
+      renderNumbers();
+    }
+
+    function eliminarAsignacion() {
+      if (selectedNumber !== null && data[selectedNumber]) {
+        delete data[selectedNumber];
+        localStorage.setItem("rifaData", JSON.stringify(data));
+        cerrarModal();
+        renderNumbers();
+      } else {
+        alert("Este número no tiene asignación.");
+      }
+    }
+
+    function cerrarModal() {
+      modal.style.display = "none";
+      selectedNumber = null;
+    }
+
+    function toggleAdmin() {
+      if (isAdmin) {
+        isAdmin = false;
+        renderNumbers();
+      } else {
+        const entrada = prompt("Ingresa la contraseña de admin:");
+        if (entrada === correctPassword) {
+          isAdmin = true;
+          renderNumbers();
+        } else {
+          alert("Contraseña incorrecta");
+        }
+      }
+    }
+
+    renderNumbers();
+  </script>
+</body>
+</html>
